@@ -5,7 +5,7 @@ date: "9/1/2021"
 output: html_document
 ---
 
-# Sharpie vs Hurricane Dorian on Twitter
+# Hurricane Ida on Twitter
 Author: Joseph Holler
 Created: Fall 2019
 Updated: Fall 2021
@@ -30,7 +30,7 @@ packages <- c(
   "here", "svDialogs", "tidyverse",
   "rtweet", "rehydratoR",
   "tidytext", "tm", "igraph", "ggraph",
-  "tidycensus", "sf", "spdep"
+  "tidycensus", "sf", "spdep", "wordcloud"
 )
 
 # additional packages: test which are still needed:
@@ -106,7 +106,7 @@ twitter_token <- create_token(
   access_secret = NULL
 )
 ```
-
+**EMMA clean up the following sections**
 # Pre-processing
 
 - Acquire Twitter data for analysis
@@ -118,6 +118,21 @@ coordinates
 get tweets for hurricane Dorian, searched on September 11, 2019
 **Warning**: this code will no longer result in the same data! 
 It is here for reference or replication work only.
+
+```{r search-snow, eval = FALSE}
+snow_raw <- search_tweets("first snow OR snow OR snowfall",
+  n = 200000, include_rts = FALSE,
+  token = twitter_token,
+  geocode = "40,-98,1500mi",
+  retryonratelimit = TRUE
+)
+
+# write status id's for results of the original twitter search
+write.table(snow_raw$status_id,
+  here("data", "raw", "public", "snowids.txt"),
+  append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
+)
+```
 
 ```{r search-dorian, eval = FALSE}
 dorian_raw <- search_tweets("dorian OR hurricane OR sharpiegate",
@@ -143,17 +158,17 @@ the query searches for all verified or unverified tweets, i.e. everything
 **Warning**: this code will no longer result in the same data! 
 It is here for reference or replication work only.
 
-```{r search-november, eval = FALSE}
-november_raw <- search_tweets("-filter:verified OR filter:verified",
-  n = 200000, include_rts = FALSE,
+```{r search-tdcontrol, eval = FALSE}
+tdcontrol_raw <- search_tweets("-filter:verified OR filter:verified",
+  n = 200000, include_rts = TRUE,
   token = twitter_token,
   geocode = "32,-78,1000mi",
   retryonratelimit = TRUE
 )
 
 # write status id's for results of the original twitter search
-write.table(november_raw$status_id,
-  here("data", "raw", "public", "novemberids.txt"),
+write.table(tdcontrol_raw$status_id,
+  here("data", "raw", "public", "tdcontrolids.txt"),
   append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
 )
 ```
@@ -218,7 +233,7 @@ november_raw <- rehydratoR(twitter_token$app$key, twitter_token$app$secret,
   base_path = NULL, group_start = 1
 )
 ``` 
-
+**EMMA change these to the raw data file links**
 ## Load the original search results
 
 Students in the GEOG 323 Open Source GIScience course may download the original
@@ -230,8 +245,11 @@ Save the two `.RDS` files to the `data/raw/private` folder and then load the
 data with the code block below.
 
 ```{r load-original}
-dorian_raw <- readRDS(here("data", "raw", "private", "dorian_raw.RDS"))
-november_raw <- readRDS(here("data", "raw", "private", "november_raw.RDS"))
+tevent_raw <- readRDS(here("data", "raw", "private", "tevent_raw.RDS"))
+tevent_raw2 <- readRDS(here("data", "raw", "private", "tevent_raw2.RDS"))
+tevent_raw3 <- readRDS(here("data", "raw", "private", "tevent_raw3.RDS"))
+tevent_raw4 <- readRDS(here("data", "raw", "private", "tevent_raw4.RDS"))
+tdcontrol_raw <- readRDS(here("data", "raw", "private", "tdcontrol_raw.RDS"))
 ```
 
 ## Process geographic data in tweets 
@@ -246,42 +264,54 @@ NA results included based on profile locations, not geotagging / geocoding.
 If you have these, it indicates that you exhausted the more precise tweets 
 in your search parameters and are including locations based on user profiles
 
-```{r count-place-types}
-count(dorian_raw, place_type)
+### Combine searches
+
+```{r combine-searches, eval = FALSE}
+tevent_raw <- dplyr::union(tevent_raw, tevent_raw2)
+tevent_raw <- dplyr::union(tevent_raw, tevent_raw3)
+rm(tevent_raw2, tevent_raw3)
 ```
 
+```{r count-place-types}
+count(tevent_raw, place_type)
+```
 ### Convert geographic information into lat/long coordinates
 
 If you have loaded filtered status ids, or you have already run this code, you
 will not notice a difference in `place_type` or `n` because the data has already
 been processed.
 
-```{r lat-long}
-# convert GPS coordinates into lat and lng columns
-# do not use geo_coords! Lat/Lng will be inverted
-dorian <- lat_lng(dorian_raw, coords = c("coords_coords"))
-november <- lat_lng(november_raw, coords = c("coords_coords"))
+First, convert `coords_coords` (from location services) to `lat`,`lng` 
+coordinates.  
+Second, filter only the records with location services-based lat and long,
+or place designated to the city, neighborhood, or POI level.  
+Third, convert the place to lat,lng. By default, this does not overwrite
+lat and long  
+*Caution*: Do not use `geo_coords` or Lat/Lng will be inverted!
 
-# select any tweets with lat and lng columns (from GPS) or
-# designated place types of your choosing
-dorian <- subset(
-  dorian,
-  place_type == "city" | place_type == "neighborhood" |
+```{r event-lat-long}
+# convert geographic information for event into lat,lng coordinates
+tevent <- tevent_raw %>% 
+  lat_lng(coords = c("coords_coords")) %>% 
+  subset(place_type == "city" | place_type == "neighborhood" | 
     place_type == "poi" | !is.na(lat)
-)
-
-november <- subset(
-  november,
-  place_type == "city" | place_type == "neighborhood" |
-    place_type == "poi" | !is.na(lat)
-)
-
-# convert bounding boxes into centroids for lat and lng columns
-dorian <- lat_lng(dorian, coords = c("bbox_coords"))
-november <- lat_lng(november, coords = c("bbox_coords"))
-
+  ) %>% 
+  lat_lng(coords = c("bbox_coords"))
+  
 # re-check counts of place types
-count(dorian, place_type)
+count(tevent, place_type)
+```
+
+Convert geographic information to `lat`,`lng` for control tweets
+
+```{r control-lat-long}
+# convert geographic information for control into lat,lng coordinates
+tdcontrol <- tdcontrol_raw %>% 
+  lat_lng(coords = c("coords_coords")) %>% 
+  subset(place_type == "city" | place_type == "neighborhood" | 
+    place_type == "poi" | !is.na(lat)
+  ) %>% 
+  lat_lng(coords = c("bbox_coords"))
 ```
 
 ### Save processed tweets
@@ -293,28 +323,27 @@ Full Tweet data cannot be shared with the public, therefore it is stored in
 a folder ignored by Git.
 
 ```{r save-processed-tweets}
-write.table(november$status_id,
-  here("data", "derived", "public", "novemberids.txt"),
+# save event data
+write.table(tevent$status_id,
+  here("data", "derived", "public", "teventids.txt"),
   append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
 )
-
-write.table(dorian$status_id,
-  here("data", "derived", "public", "dorianids.txt"),
+saveRDS(tevent, here("data", "derived", "private", "tevent.RDS"))
+# save control data
+write.table(tdcontrol$status_id,
+  here("data", "derived", "public", "tdcontrolids.txt"),
   append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
 )
-
-saveRDS(dorian, here("data", "derived", "private", "dorian.RDS"))
-saveRDS(november, here("data", "derived", "private", "november.RDS"))
+saveRDS(tdcontrol, here("data", "derived", "private", "tdcontrol.RDS"))
 ```
 
 ### Load processed tweets
 
-Optionally,
-Load processed twitter data
+Optionally, load processed twitter data here
 
 ```{r load-processed-tweets, eval = FALSE }
-dorian <- readRDS(here("data", "derived", "private", "dorian.RDS"))
-november <- readRDS(here("data", "derived", "private", "november.RDS"))
+tevent <- readRDS(here("data", "derived", "private", "tevent.RDS"))
+tdcontrol <- readRDS(here("data", "derived", "private", "tdcontrol.RDS"))
 ```
 
 # Temporal Analysis
@@ -322,12 +351,12 @@ november <- readRDS(here("data", "derived", "private", "november.RDS"))
 Create a temporal data frame and graph it
 
 ```{r temporal}
-dorian_tweets_by_hour <- ts_data(dorian, by = "hours")
-ts_plot(dorian, by = "hours")
+tevent_tweets_by_hour <- ts_data(tevent_raw, by = "hours")
+ts_plot(tevent_raw, by = "hours")
 ```
 
 # Network Analysis
-
+**EMMA redesign this plot using link on lab page for Nov 18**
 Create a network data frame. 
 Other options for 'edges' in the network include mention, retweet, and reply
 The graph does not look good (understatement), because of poor data regarding quotes.
@@ -335,8 +364,28 @@ It would be more interesting to visualize retweets, but we did not search for
 them, as we were focusing on original content.
 
 ```{r network}
-dorian_network <- network_graph(dorian, c("quote"))
-plot.igraph(dorian_network)
+tevent_network <- tevent_raw %>% 
+  network_graph("retweet,quote") %>% 
+  simplify(remove.multiple = FALSE)
+tevent_network <- delete.vertices(
+  tevent_network,
+  degree(tevent_network, mode="in") < 1
+  ) %>% 
+  simplify()
+tevent_network <- delete.vertices(
+  tevent_network,
+  degree(tevent_network) == 0
+  )
+plot.igraph(
+    tevent_network,
+    vertex.size = 4,
+    vertex.label = ifelse(
+      degree(tevent_network) > 2, 
+      V(tevent_network)$name, ""), 
+    vertex.label.cex = 0.8, 
+    edge.arrow.mode = "->",
+    edge.arrow.size = 0.1
+  )
 ```
 
 # Text Analysis
@@ -348,34 +397,30 @@ Remove stop words and our search terms.
 
 ```{r text-processing}
 # remove urls, fancy formatting, etc. in other words, clean the text content
-dorian_text <- dorian %>%
+tevent_text <- tevent %>%
   select(text) %>%
-  plain_tweets() #removes non-language elements, from rtweet
-
+  plain_tweets()
 # parse out words from tweet text
-dorian_words <- dorian_text %>% unnest_tokens(word, text) # creates one column with all individual words in all tweets as rows
-
+tevent_words <- tevent_text %>% unnest_tokens(word, text)
 # how many words do you have including the stop words?
-word_count <- list(before = count(dorian_words)$n)
-
+word_count <- list(before = count(tevent_words)$n)
 # create list of stop words (useless words not worth analyzing)
 data("stop_words")
-
 # add "t.co" twitter links to the list of stop words
 # also add the twitter search terms to the list
+# it would have been better to store a list of search terms to use here
 stop_words <- stop_words %>%
   add_row(word = "t.co", lexicon = "SMART") %>%
   add_row(word = "hurricane", lexicon = "Search") %>%
-  add_row(word = "dorian", lexicon = "Search") %>%
-  add_row(word = "sharpiegate", lexicon = "Search")
-
-# delete stop words from dorianWords with an anti_join
-dorian_words <- anti_join(dorian_words, stop_words, by="word")
-
+  add_row(word = "ida", lexicon = "Search") %>%
+  add_row(word = "hurricaneida", lexicon = "Search") %>% 
+  add_row(word = "de", lexicon = "Search")
+# delete stop words from tevent_words with an anti_join
+tevent_words <- anti_join(tevent_words, stop_words, by="word")
 # how many words after removing the stop words?
 word_count <- append(
   word_count,
-  list(after = count(dorian_words)$n)
+  list(after = count(tevent_words)$n)
   )
 print(word_count)
 ```
@@ -383,13 +428,14 @@ print(word_count)
 ## Graph frequencies of words
 
 ```{r word-frequency}
-dorian_words %>%
+tevent_words %>%
   count(word, sort = TRUE) %>%
-  top_n(15) %>%  #deprecated; try replacing with slice_min() or slice_max()
+  slice_head(n = 15) %>%
   mutate(word = reorder(word, n)) %>%
-  ggplot(aes(x = n, y = word)) +
+  ggplot(aes(x = word, y = n)) +
   geom_col() +
   xlab(NULL) +
+  coord_flip() +
   labs(
     x = "Count",
     y = "Unique words",
@@ -397,27 +443,39 @@ dorian_words %>%
   )
 ```
 
+```{r word-cloud}
+word_count <- tevent_words %>%
+  count(word, sort = TRUE) %>% 
+  top_n(80)
+
+# Plot the words with size = how frequently the words appear
+wordcloud(words = word_count$word, 
+          freq = word_count$n) 
+``` 
+
 ## Analyze and graph word association
 
 ```{r word-association}
 # separate words and count frequency of word pair occurrence in tweets
-dorian_word_pairs <- dorian_text %>%
+tevent_word_pairs <- tevent_text %>%
   mutate(text = removeWords(tolower(text), stop_words$word)) %>%
   unnest_tokens(paired_words, text, token = "ngrams", n = 2) %>%
   separate(paired_words, c("word1", "word2"), sep = " ") %>%
   count(word1, word2, sort = TRUE)
+```
 
+```{r graph-word-association}
 # graph a word cloud with space indicating association.
 # you may change the filter to filter more or less than pairs with 25 instances
-dorian_word_pairs %>%
-  filter(n >= 25 & !is.na(word1) & !is.na(word2)) %>%
+tevent_word_pairs %>%
+  filter(n >= 50 & !is.na(word1) & !is.na(word2)) %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = n, edge_width = n)) +
   geom_node_point(color = "darkslategray4", size = 3) +
   geom_node_text(aes(label = name), vjust = 1.8, size = 3) +
   labs(
-    title = "Word Network of Tweets during Hurricane Dorian",
+    title = "Word Network of Tweets during Hurricane event",
     x = "", y = ""
   ) +
   theme(
@@ -439,9 +497,9 @@ census_api_key(dlgInput(
   "Enter a Census API Key",
   Sys.getenv("CENSUS_API_KEY")
 )$res,
-overwrite = TRUE
+overwrite = TRUE,
+install = TRUE
 )
-
 counties <- get_estimates(
   "county",
   product = "population",
@@ -463,11 +521,10 @@ counties <- filter(
   STATEFP %in% c(
     "54", "51", "50", "47", "45", "44", "42", "39", "37", "36", "05", "01",
     "34", "33", "29", "28", "25", "24", "23", "22", "21", "18", "17", "13",
-    "12", "11", "10", "09"
+    "12", "11", "10", "09", "48", "40", "20"
   )
 )
 # alternatively, one could select by location using original search criteria...
-
 saveRDS(counties, here("data", "derived", "public", "counties.RDS"))
 ```
 
@@ -480,6 +537,7 @@ counties <- readRDS(here("data", "derived", "public", "counties.RDS"))
 ```
 
 ## Map Population Density and Tweet Points
+**EMMA make an NDTI plot and maybe some plots at smaller geographic scale? maybe LA and NY?**
 
 map results with GGPlot
 note: cut_interval is an equal interval classification function, while 
@@ -493,10 +551,10 @@ ggplot() +
   scale_fill_brewer(palette = "GnBu") +
   guides(fill = guide_legend(title = "Population Density")) +
   geom_point(
-    data = dorian, aes(x = lng, y = lat),
+    data = tevent, aes(x = lng, y = lat),
     colour = "purple", alpha = 0.1, size = 1
   ) +
-  labs(title = "Tweet Locations During Hurricane Dorian") +
+  labs(title = "Tweet Locations During Hurricane Ida") +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.title.x = element_blank(),
@@ -508,47 +566,67 @@ ggplot() +
 
 ## Join Tweets to Counties
 
-Spatially join Dorian and November tweets to counties and save counties
-as `counties_tweet_counts.RDS`
+Spatially join tevent tweets to counties with the following steps:
 
-```{r join-tweets-to-counties}
-dorian_sf <- dorian %>%
+1. Make point geometries from `lat` and `lng` columns
+2. Reproject points to `NAD 1983` geographic coordinate system
+3. Join county `GEOID` to each tweet by location
+4. Drop geometry of points
+5. Group by county `GEOID`
+6. Count number of tweets by county
+7. Join number of tweets to counties
+8. Replace missing values with 0
+9. Calculate rate of spatial tweets per 10,000 people
+
+**Idea**: I could keep county-level tweet data for this part, because I'm
+summarizing by county anyway! It just doesn't make sense to map county-level
+tweet points.
+
+```{r join-event-tweets-to-counties}
+tevent_sf <- tevent %>%
+  # optional temporal filter:
+  # filter(created_at > as.POSIXct("2021-08-30 00:00:00")) %>% 
   st_as_sf(coords = c("lng", "lat"), crs = 4326) %>% # make point geometries
   st_transform(4269) %>% # transform to NAD 1983
-  st_join(select(counties, GEOID)) # spatially join counties to each tweet
-
-dorian_by_county <- dorian_sf %>%
+  st_join(select(counties, GEOID)) # spatially join county GEOID to each tweet
+tevent_by_county <- tevent_sf %>%
   st_drop_geometry() %>% # drop geometry / make simple table
   group_by(GEOID) %>% # group by county using GEOID
-  summarise(dorian = n()) # count # of tweets
-
+  summarise(event_tweets = n()) # count # of tweets
 counties <- counties %>%
-  left_join(dorian_by_county, by = "GEOID") %>% # join count of tweets to counties
-  mutate(dorian = replace_na(dorian, 0)) # replace nulls with 0's
+  left_join(tevent_by_county, by = "GEOID") %>%
+  mutate(
+    event_tweets = replace_na(event_tweets, 0), 
+    tweetrate = event_tweets / POP * 10000
+  )
+  
+rm(tevent_by_county)
+```
 
-rm(dorian_by_county)
+Spatially join tdcontrol tweets to counties and calculate normalized tweet 
+difference index: `(event - control) / (event + control)`
 
-# Repeat the workflow above for tweets in November
-
-nov_by_county <- november %>%
+```{r join-control-tweets-to-counties}
+# Repeat the workflow above for tweets in tdcontrol
+tdcontrol_by_county <- tdcontrol %>%
   st_as_sf(coords = c("lng", "lat"), crs = 4326) %>%
   st_transform(4269) %>%
   st_join(select(counties, GEOID)) %>%
   st_drop_geometry() %>%
   group_by(GEOID) %>%
-  summarise(nov = n())
-
+  summarise(ctrl_tweets = n())
 counties <- counties %>%
-  left_join(nov_by_county, by = "GEOID") %>%
-  mutate(nov = replace_na(nov, 0))
-
+  left_join(tdcontrol_by_county, by = "GEOID") %>%
+  mutate(ctrl_tweets = replace_na(ctrl_tweets, 0))
 counties <- counties %>%
-  mutate(dorrate = dorian / POP * 10000) %>% # dorrate is tweets per 10,000
-  mutate(ntdi = (dorian - nov) / (dorian + nov)) %>% # normalized tweet diff
-  mutate(ntdi = replace_na(ntdi, 0)) # replace NULLs with 0's
+  mutate(ndti = (event_tweets - ctrl_tweets) / (event_tweets + ctrl_tweets)) %>% 
+  mutate(ndti = replace_na(ndti, 0)) # replace NULLs with 0's
+rm(tdcontrol_by_county)
+```
 
-rm(nov_by_county)
+Save counties as `counties_tweet_counts.RDS`
 
+```{r save-counties-tweet-counts}
 # save counties geographic data with derived tweet rates
 saveRDS(counties, here("data", "derived", "public", "counties_tweet_counts.RDS"))
 ```
@@ -569,12 +647,10 @@ Use 110km Euclidean distance and include self in the weight matrix
 county_coords <- counties %>%
   st_centroid() %>% # convert polygons to centroid points
   st_coordinates() # convert to simple x,y coordinates to play with stdep
-
 thresdist <- county_coords %>% 
   dnearneigh(0, 110, longlat = TRUE) %>% # use geodesic distance of 110km
   # distance should be long enough for every feature to have >= one neighbor
   include.self() # include a county in its own neighborhood (for G*)
-
 thresdist # view statistical summary of the nearest neighbors
 ```
 
@@ -583,27 +659,18 @@ This should result in a very dense graph, because each county is connected
 to all other counties within 110 km.
 
 ```{r plot-spatial-weight-matrix}
-#drawing lines between each county neighborhood, darker lines mean more counties in a neighborhood
 plot(thresdist, county_coords, lwd=0.1) # plot nearest neighbor ties
 ```
 
 ## Calculate Getis-Ord G* Statistic
 
 ```{r getis-ord}
-
 # Create weight matrix from the neighbor objects
 dwm <- nb2listw(thresdist, zero.policy = T)
-
-######## Local G* Hotspot Analysis ########
 # Get Ord G* statistic for hot and cold spots
-counties$locG <- as.vector(localG(counties$dorrate,
-  listw = dwm,
-  zero.policy = TRUE
-))
-
-# may be same as:
-# counties$dorrate %>% localG(listw = dwm, zero.policy = TRUE) %>% as.vector()
-
+counties$locG <- counties$tweetrate %>% 
+  localG(listw = dwm, zero.policy = TRUE) %>% 
+  as.vector()
 # check summary statistics of the local G score
 summary(counties$locG)
 ```
@@ -639,7 +706,6 @@ counties <- counties %>%
     max(counties$locG)
   )))
 rm(siglevel)
-
 # map results!
 ggplot() +
   geom_sf(data = counties, aes(fill = sig), color = "white", lwd = 0.1) +
@@ -649,56 +715,10 @@ ggplot() +
     aesthetics = "fill"
   ) +
   guides(fill = guide_legend(title = "Hot Spots")) +
-  labs(title = "Clusters of Hurricane Dorian Twitter Activity") +
+  labs(title = "Clusters of Hurricane Ida Twitter Activity") +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.title.x = element_blank(),
     axis.title.y = element_blank()
   )
 ```
-
-# Map NDTI
-```{r map-ndti}
-ggplot() +
-  geom_sf(data = counties, 
-    aes(fill = cut_interval(ntdi, 5)), color = "grey", lwd = 0.05) +
-  scale_fill_brewer(palette = "PuRd") +
-  guides(fill = guide_legend(title = "Normalized Difference Tweet Index")) +
-  labs(title = "Increased Discussion of Hurricanes on Twitter During Hurrican Dorian") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank()
-  ) +
-  xlim(-96, -67) +
-  ylim(24, 47)
-```
-# Map Tweet Density
-
-```{r log-scale-dorrate}
-# take log scale, when dorrate = 0, replace with 0.1 to make not NA
-counties <- counties %>% 
-  mutate(dorrate_fake = if_else(dorrate == 0,
-                                 0.1,
-                                 dorrate)) %>% 
-  mutate(dorrate_log = log(dorrate_fake))
-```
-
-
-```{r tweet-density}
-ggplot() +
-  geom_sf(data = counties, 
-    aes(fill = cut_interval(dorrate_log, 5)), color = "grey", lwd = 0.05) +
-  scale_fill_brewer(palette = "YlGnBu") +
-  guides(fill = guide_legend(title = "Tweets Per 10,000 People")) +
-  labs(title = "Tweet Density During Hurricane Dorian") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank()
-  ) +
-  xlim(-96, -67) +
-  ylim(24, 47)
-
-```
-
