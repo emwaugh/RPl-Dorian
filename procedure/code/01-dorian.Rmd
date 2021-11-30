@@ -1,21 +1,25 @@
 ---
-title: "Sharpie vs Hurricane Dorian on Twitter"
+title: "Hurricane Ida Outage on Twitter"
 author: "Joseph Holler"
 date: "9/1/2021"
 output: html_document
 ---
 
-# Hurricane Ida on Twitter
+# Hurricane Ida Outage on Twitter
 Author: Joseph Holler
 Created: Fall 2019
 Updated: Fall 2021
 
-This analysis was developed with assistance from:
-- Casey Lilley's GEOG 323 final project available at: https://caseylilley.github.io/finalproj.html  
+This analysis is based off of a previous study of Hurricane event
+- https://www.github.com/gis4dev/OR-Dorian  
+and was developed with assistance from:
+- Casey Lilley's GEOG 323 final project available at:
+https://caseylilley.github.io/finalproj.html  
 - Leah Wasser and Carson Farmer's *Twitter Data in R Using RTweet* 
 tutorial on EarthLab at: 
 https://www.earthdatascience.org/courses/earth-analytics/get-data-using-apis/use-twitter-api-r/
-- Michael Minn's *Basic Spatial Point Pattern Analysis in R* tutorial at: http://michaelminn.net/tutorials/r-point-analysis/
+- Michael Minn's *Basic Spatial Point Pattern Analysis in R* tutorial available 
+at: http://michaelminn.net/tutorials/r-point-analysis/
 
 ## Set up environment
 
@@ -106,48 +110,87 @@ twitter_token <- create_token(
   access_secret = NULL
 )
 ```
-**EMMA clean up the following sections**
 # Pre-processing
 
 - Acquire Twitter data for analysis
 - Filter Twitter data for good geographic information and convert to Lat/Long
 coordinates
 
-## Search for Hurricane Dorian tweets
+## Search for Hurricane event tweets
 
-get tweets for hurricane Dorian, searched on September 11, 2019
+get tweets for hurricane Ida, searched on `02-Sept-2021`
 **Warning**: this code will no longer result in the same data! 
 It is here for reference or replication work only.
 
-```{r search-snow, eval = FALSE}
-snow_raw <- search_tweets("first snow OR snow OR snowfall",
-  n = 200000, include_rts = FALSE,
+```{r search-event, eval = FALSE}
+tevent_raw <- search_tweets("ida OR hurricane",
+  n = 200000, include_rts = TRUE,
   token = twitter_token,
-  geocode = "40,-98,1500mi",
+  geocode = "36,-87,1000mi",
   retryonratelimit = TRUE
 )
-
 # write status id's for results of the original twitter search
-write.table(snow_raw$status_id,
-  here("data", "raw", "public", "snowids.txt"),
+write.table(tevent_raw$status_id,
+  here("data", "raw", "public", "teventids.txt"),
   append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
 )
+saveRDS(tevent_raw, here("data", "raw", "private", "tevent_raw.RDS") )
 ```
 
-```{r search-dorian, eval = FALSE}
-dorian_raw <- search_tweets("dorian OR hurricane OR sharpiegate",
-  n = 200000, include_rts = FALSE,
+## Second search for more temporal coverage
+get tweets for hurricane Ida, searched on `05-Sept-2021`
+
+```{r search-event-again, eval = FALSE}
+tevent_raw2 <- search_tweets("ida OR hurricane",
+  n = 200000, include_rts = TRUE,
   token = twitter_token,
-  geocode = "32,-78,1000mi",
+  geocode = "36,-87,1000mi",
   retryonratelimit = TRUE
 )
-
 # write status id's for results of the original twitter search
-write.table(dorian_raw$status_id,
-  here("data", "raw", "public", "dorianids.txt"),
+write.table(tevent_raw2$status_id,
+  here("data", "raw", "public", "teventids2.txt"),
   append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
 )
+saveRDS(tevent_raw2, here("data", "raw", "private", "tevent_raw2.RDS") )
 ```
+
+## Third search for more temporal coverage
+get tweets for hurricane Ida, searched on `10-Sept-2021`
+
+```{r search-event-again, eval = FALSE}
+tevent_raw3 <- search_tweets("ida OR hurricane",
+  n = 200000, include_rts = TRUE,
+  token = twitter_token,
+  geocode = "36,-87,1000mi",
+  retryonratelimit = TRUE
+)
+# write status id's for results of the original twitter search
+write.table(tevent_raw3$status_id,
+  here("data", "raw", "public", "teventids3.txt"),
+  append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
+)
+saveRDS(tevent_raw3, here("data", "raw", "private", "tevent_raw3.RDS") )
+```
+
+## Fourth search for different thematic coverage
+get tweets for hurricane Ida, searched on `10-Sept-2021`
+
+```{r search-event-again, eval = FALSE}
+tevent_raw4 <- search_tweets("ida OR flood OR electricity OR recovery OR outage",
+  n = 200000, include_rts = TRUE,
+  token = twitter_token,
+  geocode = "36,-87,1000mi",
+  retryonratelimit = TRUE
+)
+# write status id's for results of the original twitter search
+write.table(tevent_raw4$status_id,
+  here("data", "raw", "public", "teventids4.txt"),
+  append = FALSE, quote = FALSE, row.names = FALSE, col.names = FALSE
+)
+saveRDS(tevent_raw4, here("data", "raw", "private", "tevent_raw4.RDS") )
+```
+
 
 ## Search for generic tweets after hurricane season
 
@@ -189,28 +232,23 @@ original Twitter data used for this research.
 Twitter queries, therefore you may select to load only the derived status ids,
 which have filtered only the tweets with valid geographic data (approximately 
 one tenth of the raw tweets)
-
 ### Load Twitter status ids
 
 ```{r load-original-statusids, eval = FALSE}
-# load tweet status id's for Hurricane Dorian search results
-
+# load tweet status id's for Hurricane event search results
 filtered <- dlgList(
   choices = c("raw", "derived"), 
-  title = "Which Dorin ids?")$res
-
-dorianids <-
-  data.frame(read.table(here("data", filtered, "public", "dorianids.txt"),
+  title = "Which Ida ids?")$res
+teventids <-
+  data.frame(read.table(here("data", filtered, "public", "teventids.txt"),
     numerals = "no.loss"
   ))
-
 filtered <- dlgList(
   choices = c("raw", "derived"), 
-  title = "Which Dorin ids?")$res
-
-# load cleaned status id's for November general twitter search
-novemberids <-
-  data.frame(read.table(here("data", "raw", "public", "novemberids.txt"),
+  title = "Which Ida ids?")$res
+# load cleaned status id's for tdcontrol general twitter search
+tdcontrolids <-
+  data.frame(read.table(here("data", "raw", "public", "tdcontrolids.txt"),
     numerals = "no.loss"
   ))
 ```
@@ -219,29 +257,38 @@ novemberids <-
 This operation may take over an hour to run on all of the raw tweets
 
 ```{r rehydrate, eval = FALSE}
-# rehydrate dorian tweets
-dorian_raw <- rehydratoR(twitter_token$app$key, twitter_token$app$secret,
+# rehydrate event tweets
+tevent_raw <- rehydratoR(twitter_token$app$key, twitter_token$app$secret,
   twitter_token$credentials$oauth_token,
-  twitter_token$credentials$oauth_secret, dorianids,
+  twitter_token$credentials$oauth_secret, teventids,
   base_path = NULL, group_start = 1
 )
-
-# rehydrate november tweets
-november_raw <- rehydratoR(twitter_token$app$key, twitter_token$app$secret,
+# rehydrate tdcontrol tweets
+tdcontrol_raw <- rehydratoR(twitter_token$app$key, twitter_token$app$secret,
   twitter_token$credentials$oauth_token,
-  twitter_token$credentials$oauth_secret, novemberids,
+  twitter_token$credentials$oauth_secret, tdcontrolids,
   base_path = NULL, group_start = 1
 )
 ``` 
-**EMMA change these to the raw data file links**
+
 ## Load the original search results
 
 Students in the GEOG 323 Open Source GIScience course may download the original
-search results from the private course data repository: 
-https://github.com/GIS4DEV/geog323data/raw/main/dorian/dorian_raw.RDS
-https://github.com/GIS4DEV/geog323data/raw/main/dorian/november.RDS
+search results from the private course data repository.
 
-Save the two `.RDS` files to the `data/raw/private` folder and then load the
+get tweets for hurricane Ida, searched on `02-Sept-2021`:
+https://github.com/GIS4DEV/geog323data/raw/main/ida/tevent_raw.RDS
+
+get tweets for hurricane Ida, searched on `05-Sept-2021`:
+https://github.com/GIS4DEV/geog323data/raw/main/ida/tevent_raw2.RDS
+
+get tweets for hurricane Ida, searched on `10-Sept-2021`:
+https://github.com/GIS4DEV/geog323data/raw/main/ida/tevent_raw3.RDS
+
+get tweets for hurricane Ida, searched on `10-Sept-2021` with different thematic coverage:
+https://github.com/GIS4DEV/geog323data/raw/main/ida/tevent_raw4.RDS
+
+Save the four `.RDS` files to the `data/raw/private` folder and then load the
 data with the code block below.
 
 ```{r load-original}
@@ -301,6 +348,37 @@ tevent <- tevent_raw %>%
 # re-check counts of place types
 count(tevent, place_type)
 ```
+Separate analysis into two time periods for additional comparison. 
+
+```{r define-time-periods}
+# Hurricane Ida hit the southeastern U.S. on August 29, 2021.
+# Heavy rains began in the northeastern U.S. on September 1, 2021. 
+southeast <- tevent %>% 
+  filter(str_detect(created_at, "-08-29|-08-30|-08-31"))
+
+northeast <- tevent %>% 
+  filter(str_detect(created_at, "-09-01|-09-02|-09-03"))
+```
+
+```{r event-lat-long-southeast}
+# convert geographic information for event into lat,lng coordinates
+tevent_se <- southeast %>% 
+  lat_lng(coords = c("coords_coords")) %>% 
+  subset(place_type == "city" | place_type == "neighborhood" | 
+    place_type == "poi" | !is.na(lat)
+  ) %>% 
+  lat_lng(coords = c("bbox_coords"))
+```
+
+```{r event-lat-long-northeast}
+# convert geographic information for event into lat,lng coordinates
+tevent_ne <- northeast %>% 
+  lat_lng(coords = c("coords_coords")) %>% 
+  subset(place_type == "city" | place_type == "neighborhood" | 
+    place_type == "poi" | !is.na(lat)
+  ) %>% 
+  lat_lng(coords = c("bbox_coords"))
+```
 
 Convert geographic information to `lat`,`lng` for control tweets
 
@@ -348,7 +426,7 @@ tdcontrol <- readRDS(here("data", "derived", "private", "tdcontrol.RDS"))
 
 # Temporal Analysis
 
-Create a temporal data frame and graph it
+Create a temporal dataframe and graph it
 
 ```{r temporal}
 tevent_tweets_by_hour <- ts_data(tevent_raw, by = "hours")
@@ -356,7 +434,7 @@ ts_plot(tevent_raw, by = "hours")
 ```
 
 # Network Analysis
-**EMMA redesign this plot using link on lab page for Nov 18**
+**EMMA redesign this plot using link on lab page for Nov 18 & Kara notes, also write_graph to save**
 Create a network data frame. 
 Other options for 'edges' in the network include mention, retweet, and reply
 The graph does not look good (understatement), because of poor data regarding quotes.
@@ -374,18 +452,23 @@ tevent_network <- delete.vertices(
   simplify()
 tevent_network <- delete.vertices(
   tevent_network,
-  degree(tevent_network) == 0
+  degree(tevent_network) < 15
   )
-plot.igraph(
+network_graph <- plot.igraph(
     tevent_network,
-    vertex.size = 4,
+    vertex.size = degree(tevent_network)*.4,
     vertex.label = ifelse(
-      degree(tevent_network) > 2, 
+      degree(tevent_network) > 5, 
       V(tevent_network)$name, ""), 
-    vertex.label.cex = 0.8, 
+    vertex.label.cex = degree(tevent_network)*.05, 
     edge.arrow.mode = "->",
     edge.arrow.size = 0.1
   )
+
+#write_graph(network_graph,
+#            here("results", "figures", "network_graph.png")
+#            )
+
 ```
 
 # Text Analysis
@@ -428,7 +511,7 @@ print(word_count)
 ## Graph frequencies of words
 
 ```{r word-frequency}
-tevent_words %>%
+word_freq <- tevent_words %>%
   count(word, sort = TRUE) %>%
   slice_head(n = 15) %>%
   mutate(word = reorder(word, n)) %>%
@@ -441,6 +524,9 @@ tevent_words %>%
     y = "Unique words",
     title = "Count of unique words found in tweets"
   )
+
+ggsave(here("results", "figures", "word_freq.png"),
+       plot = word_freq)
 ```
 
 ```{r word-cloud}
@@ -467,7 +553,7 @@ tevent_word_pairs <- tevent_text %>%
 ```{r graph-word-association}
 # graph a word cloud with space indicating association.
 # you may change the filter to filter more or less than pairs with 25 instances
-tevent_word_pairs %>%
+word_pairs <- tevent_word_pairs %>%
   filter(n >= 50 & !is.na(word1) & !is.na(word2)) %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
@@ -486,9 +572,12 @@ tevent_word_pairs %>%
     ),
     legend.background = element_rect(fill = "grey95")
   )
+
+ggsave(here("results", "figures", "word_pairs.png"),
+       plot = word_pairs)
 ```
 
-## Spatial Analysis
+# Spatial Analysis
 
 First, you will need a Census API. You can sign up for one here: https://api.census.gov/data/key_signup.html
 
@@ -537,7 +626,6 @@ counties <- readRDS(here("data", "derived", "public", "counties.RDS"))
 ```
 
 ## Map Population Density and Tweet Points
-**EMMA make an NDTI plot and maybe some plots at smaller geographic scale? maybe LA and NY?**
 
 map results with GGPlot
 note: cut_interval is an equal interval classification function, while 
@@ -545,7 +633,7 @@ cut_number is a quantile / equal count function
 you can change the colors, titles, and transparency of points
 
 ```{r map-tweet-points}
-ggplot() +
+tweet_pts <- ggplot() +
   geom_sf(data = counties, 
     aes(fill = cut_number(DENSITY, 5)), color = "grey") +
   scale_fill_brewer(palette = "GnBu") +
@@ -562,6 +650,9 @@ ggplot() +
   ) +
   xlim(-96, -67) +
   ylim(24, 47)
+
+ggsave(here("results", "maps", "tweetpoints.png"),
+       plot = tweet_pts)
 ```
 
 ## Join Tweets to Counties
@@ -646,7 +737,7 @@ Use 110km Euclidean distance and include self in the weight matrix
 ```{r spatial-weight-matrix, warning = FALSE}
 county_coords <- counties %>%
   st_centroid() %>% # convert polygons to centroid points
-  st_coordinates() # convert to simple x,y coordinates to play with stdep
+  st_coordinates() # convert to simple x,y coordinates to play with spdep
 thresdist <- county_coords %>% 
   dnearneigh(0, 110, longlat = TRUE) %>% # use geodesic distance of 110km
   # distance should be long enough for every feature to have >= one neighbor
@@ -659,7 +750,9 @@ This should result in a very dense graph, because each county is connected
 to all other counties within 110 km.
 
 ```{r plot-spatial-weight-matrix}
-plot(thresdist, county_coords, lwd=0.1) # plot nearest neighbor ties
+swm <- plot(thresdist, county_coords, lwd=0.1) # plot nearest neighbor ties
+ggsave(here("results", "maps", "spatial_weight_matrix.png"),
+       plot = swm)
 ```
 
 ## Calculate Getis-Ord G* Statistic
@@ -677,13 +770,10 @@ summary(counties$locG)
 
 ## Map Hotspots
 
-classify G scores by significance values typical of Z-scores
-where 1.15 is at the 0.125 confidence level,
-and 1.95 is at the 0.05 confidence level for two tailed z-scores
-based on Getis and Ord (1995) Doi: 10.1111/j.1538-4632.1992.tb00261.x
+classify G scores by significance values typical of Z-scores where 1.15 is at the 0.125 confidence level, and 1.95 is at the 0.05 confidence level for two tailed z-scores based on Getis and Ord (1995) Doi: 10.1111/j.1538-4632.1992.tb00261.x
 to find other critical values, use the qnorm() function as shown here:
 https://methodenlehre.github.io/SGSCLM-R-course/statistical-distributions.html
-Getis Ord also suggest applying a Bonferroni correction 
+Getis & Ord also suggest applying a Bonferroni correction 
 
 breaks and colors from http://michaelminn.net/tutorials/r-point-analysis/
 based on 1.96 as the 95% confidence interval for z-scores
@@ -706,19 +796,219 @@ counties <- counties %>%
     max(counties$locG)
   )))
 rm(siglevel)
+#sp
 # map results!
-ggplot() +
+hotspots <- ggplot() +
   geom_sf(data = counties, aes(fill = sig), color = "white", lwd = 0.1) +
   scale_fill_manual(
     values = c("#0000FF80", "#8080FF80", "#FFFFFF80", "#FF808080", "#FF000080"),
     labels = c("low", "", "insignificant", "", "high"),
     aesthetics = "fill"
   ) +
-  guides(fill = guide_legend(title = "Hot Spots")) +
-  labs(title = "Clusters of Hurricane Ida Twitter Activity") +
+  guides(fill = guide_legend(title = "Activity")) +
+  labs(title = "Hotspots of Hurricane Ida Twitter Activity (Overall)") +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.title.x = element_blank(),
     axis.title.y = element_blank()
   )
+
+ggsave(here("results", "maps", "hotspots.png"),
+       plot = hotspots)
+```
+
+## Map NDTI
+```{r map-ndti}
+ndti <- ggplot() +
+  geom_sf(data = counties, 
+    aes(fill = cut_interval(ndti, 5)), color = "grey", lwd = 0.05) +
+  scale_fill_brewer(palette = "PuRd") +
+  guides(fill = guide_legend(title = "Normalized Difference Tweet Index")) +
+  labs(title = "Increased Discussion of Hurricanes on Twitter During Hurricane Ida") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  ) +
+  xlim(-105, -67) +
+  ylim(24, 47)
+
+ggsave(here("results", "maps", "ndti.png"),
+       plot = ndti)
+```
+
+## Separating by time period (southeast and northeast)
+```{r join-event-tweets-to-counties-southeast}
+# August 29-31, 2021
+tevent_sf_se <- tevent_se %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>% # make point geometries
+  st_transform(4269) %>% # transform to NAD 1983
+  st_join(select(counties, GEOID)) # spatially join county GEOID to each tweet
+tevent_by_county_se <- tevent_sf_se %>%
+  st_drop_geometry() %>% # drop geometry / make simple table
+  group_by(GEOID) %>% # group by county using GEOID
+  summarise(southeast = n()) # count # of tweets
+counties_se <- counties %>%
+  left_join(tevent_by_county_se, by = "GEOID") %>%
+  mutate(
+    southeast = replace_na(southeast, 0),
+    tweetrate = southeast / POP * 10000
+  )
+  
+rm(tevent_by_county_se, tevent_sf_se)
+```
+
+```{r join-event-tweets-to-counties-northeast}
+# September 1-3, 2021
+tevent_sf_ne <- tevent_ne %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>% # make point geometries
+  st_transform(4269) %>% # transform to NAD 1983
+  st_join(select(counties, GEOID)) # spatially join county GEOID to each tweet
+tevent_by_county_ne <- tevent_sf_ne %>%
+  st_drop_geometry() %>% # drop geometry / make simple table
+  group_by(GEOID) %>% # group by county using GEOID
+  summarise(northeast = n()) # count # of tweets
+counties_ne <- counties %>%
+  left_join(tevent_by_county_ne, by = "GEOID") %>%
+  mutate(
+    northeast = replace_na(northeast, 0),
+    tweetrate = northeast / POP * 10000
+  )
+  
+rm(tevent_by_county_ne, tevent_sf_ne)
+```
+
+Save counties as `counties_tweet_counts.RDS`
+
+```{r save-counties-tweet-counts-ne/se}
+# save counties geographic data with derived tweet rates
+saveRDS(counties_se, here("data", "derived", "public", "counties_tweet_counts_se.RDS"))
+saveRDS(counties_ne, here("data", "derived", "public", "counties_tweet_counts_ne.RDS"))
+```
+
+Optionally, begin here by loading counties with Twitter data
+
+```{r load-counties-with-twitter-ne/se}
+counties_se <- readRDS(here("data", "derived", "public", "counties_tweet_counts_se.RDS"))
+counties_ne <- readRDS(here("data", "derived", "public", "counties_tweet_counts_ne.RDS"))
+```
+
+### Spatial Cluster Analysis (for two time periods)
+
+#### Create Spatial Weight Matrix (for two time periods)
+
+Use 110km Euclidean distance and include self in the weight matrix
+
+```{r spatial-weight-matrix-se, warning = FALSE}
+county_coords <- counties_se %>%
+  st_centroid() %>% # convert polygons to centroid points
+  st_coordinates() # convert to simple x,y coordinates to play with spdep
+thresdist_se <- county_coords %>% 
+  dnearneigh(0, 110, longlat = TRUE) %>% # use geodesic distance of 110km
+  # distance should be long enough for every feature to have >= one neighbor
+  include.self() # include a county in its own neighborhood (for G*)
+thresdist_se # view statistical summary of the nearest neighbors
+```
+
+```{r spatial-weight-matrix-ne, warning = FALSE}
+county_coords <- counties_ne %>%
+  st_centroid() %>% # convert polygons to centroid points
+  st_coordinates() # convert to simple x,y coordinates to play with spdep
+thresdist_ne <- county_coords %>% 
+  dnearneigh(0, 110, longlat = TRUE) %>% # use geodesic distance of 110km
+  # distance should be long enough for every feature to have >= one neighbor
+  include.self() # include a county in its own neighborhood (for G*)
+thresdist_ne # view statistical summary of the nearest neighbors
+```
+
+### Calculate Getis-Ord G* Statistic (for two time periods)
+
+```{r getis-ord-se}
+# Create weight matrix from the neighbor objects
+dwm_se <- nb2listw(thresdist_se, zero.policy = T)
+# Get Ord G* statistic for hot and cold spots
+counties_se$locG <- counties_se$tweetrate %>% 
+  localG(listw = dwm_se, zero.policy = TRUE) %>% 
+  as.vector()
+# check summary statistics of the local G score
+summary(counties_se$locG)
+```
+```{r getis-ord-ne}
+# Create weight matrix from the neighbor objects
+dwm_ne <- nb2listw(thresdist_ne, zero.policy = T)
+# Get Ord G* statistic for hot and cold spots
+counties_ne$locG <- counties_ne$tweetrate %>% 
+  localG(listw = dwm_ne, zero.policy = TRUE) %>% 
+  as.vector()
+# check summary statistics of the local G score
+summary(counties_ne$locG)
+```
+
+### Map Hotspots (for two time periods)
+
+```{r map-hotspots-se}
+# classify by significance levels
+siglevel <- c(1.15, 1.95)
+counties_se <- counties_se %>%
+  mutate(sig = cut(locG, c(
+    min(counties_se$locG),
+    siglevel[2] * -1,
+    siglevel[1] * -1,
+    siglevel[1],
+    siglevel[2],
+    max(counties_se$locG)
+  )))
+rm(siglevel)
+#sp
+# map results!
+hotspots_se <- ggplot() +
+  geom_sf(data = counties_se, aes(fill = sig), color = "white", lwd = 0.1) +
+  scale_fill_manual(
+    values = c("#0000FF80", "#8080FF80", "#FFFFFF80", "#FF808080", "#FF000080"),
+    labels = c("low", "", "insignificant", "", "high"),
+    aesthetics = "fill"
+  ) +
+  guides(fill = guide_legend(title = "Activity")) +
+  labs(title = "Hotspots of Hurricane Ida Twitter Activity: August 29-31, 2021") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+
+ggsave(here("results", "maps", "hotspots_aug29_31.png"),
+       plot = hotspots_se)
+```
+```{r map-hotspots-ne}
+# classify by significance levels
+siglevel <- c(1.15, 1.95)
+counties_ne <- counties_ne %>%
+  mutate(sig = cut(locG, c(
+    min(counties_ne$locG),
+    siglevel[2] * -1,
+    siglevel[1] * -1,
+    siglevel[1],
+    siglevel[2],
+    max(counties_ne$locG)
+  )))
+rm(siglevel)
+#sp
+# map results!
+hotspots_ne <- ggplot() +
+  geom_sf(data = counties_ne, aes(fill = sig), color = "white", lwd = 0.1) +
+  scale_fill_manual(
+    values = c("#0000FF80", "#8080FF80", "#FFFFFF80", "#FF808080", "#FF000080"),
+    labels = c("low", "", "insignificant", "", "high"),
+    aesthetics = "fill"
+  ) +
+  guides(fill = guide_legend(title = "Activity")) +
+  labs(title = "Hotspots of Hurricane Ida Twitter Activity: September 1-3, 2021") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+
+ggsave(here("results", "maps", "hotspots_sep01_03.png"),
+       plot = hotspots_ne)
 ```
