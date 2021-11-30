@@ -348,7 +348,7 @@ tevent <- tevent_raw %>%
 # re-check counts of place types
 count(tevent, place_type)
 ```
-Separate analysis into two time periods for additional comparison. 
+Separate analysis into two time periods for additional comparison later. 
 
 ```{r define-time-periods}
 # Hurricane Ida hit the southeastern U.S. on August 29, 2021.
@@ -434,7 +434,6 @@ ts_plot(tevent_raw, by = "hours")
 ```
 
 # Network Analysis
-**EMMA redesign this plot using link on lab page for Nov 18 & Kara notes, also write_graph to save**
 Create a network data frame. 
 Other options for 'edges' in the network include mention, retweet, and reply
 The graph does not look good (understatement), because of poor data regarding quotes.
@@ -561,7 +560,7 @@ word_pairs <- tevent_word_pairs %>%
   geom_node_point(color = "darkslategray4", size = 3) +
   geom_node_text(aes(label = name), vjust = 1.8, size = 3) +
   labs(
-    title = "Word Network of Tweets during Hurricane event",
+    title = "Word Network of Tweets during Hurricane Ida",
     x = "", y = ""
   ) +
   theme(
