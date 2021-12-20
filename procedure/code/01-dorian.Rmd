@@ -823,7 +823,7 @@ ndti <- ggplot() +
     aes(fill = cut_interval(ndti, 5)), color = "grey", lwd = 0.05) +
   scale_fill_brewer(palette = "PuRd") +
   guides(fill = guide_legend(title = "Normalized Difference Tweet Index")) +
-  labs(title = "Increased Discussion of Hurricanes on Twitter During Hurricane Ida") +
+  labs(title = "Hurricane Discussion on Twitter During Hurricane Ida") +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.title.x = element_blank(),
