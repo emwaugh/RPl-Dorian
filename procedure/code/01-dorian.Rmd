@@ -6,7 +6,7 @@ output: html_document
 ---
 
 # Hurricane Ida Outage on Twitter
-Author: Joseph Holler
+Author: Joseph Holler and GEOG 323 fall 2021
 Created: Fall 2019
 Updated: Fall 2021
 
