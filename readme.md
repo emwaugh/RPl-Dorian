@@ -1,8 +1,10 @@
-# OR-Dorian
+# Rpl-Dorian
 
-This compendium is for a research project in progress, with the aim of contrasting information from fake Twitter storms with real hurricanes, using the case of Hurricane Dorian in the United States.
+This compendium is based on a project in progress with the aim of contrasting information from fake Twitter storms with real hurricanes, using the case of Hurricane Dorian in the United States.
 
-This research was developed by Joseph Holler.
+This replication focuses on the spatial distribution of Twitter activity regarding Hurricane Ida in 2021.
+
+This research was developed by Joseph Holler in 2020, and replicated by Emma Waugh in fall 2021.
 
 
 # Template for Reproducible and Replicable Research
@@ -60,5 +62,5 @@ The structure of this repository closely follows the excellent [rr-init](https:/
 ## Repository Template Citation and License
 This research compendium template is in its testing phase. It will eventually be published to the public with an open-source license at
 https://github.com/HEGSRR/RR-Template
-The compendium is the work of Peter Kedron, Joseph Holler, and Zach Hilgendorf. 
+The compendium is the work of Peter Kedron, Joseph Holler, and Zach Hilgendorf.
 This draft version of the compendium is provided for private use only: not for distribution.
